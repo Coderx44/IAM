@@ -2,21 +2,24 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"os"
 	"time"
 
-	gojwt "github.com/golang-jwt/jwt"
+	"github.com/Coderx44/oauth_and_saml/middlewares"
+	"github.com/crewjam/saml/samlsp"
 	"github.com/gorilla/sessions"
+	jwtverifier "github.com/okta/okta-jwt-verifier-golang"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 )
 
 func genRandonState() string {
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-	rand.Seed(time.Now().UnixNano())
+	rand.NewSource(time.Now().UnixNano())
 	b := make([]rune, 10)
 	for i := range b {
 		b[i] = letters[rand.Intn(len(letters))]
@@ -28,24 +31,31 @@ func genRandonState() string {
 
 func Login(okta *oauth2.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session := r.Context().Value("my-session").(*sessions.Session)
+		session, err := middlewares.Store.Get(r, middlewares.SessionName)
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
 		state := genRandonState()
 		session.Values["state"] = state
 
-		session.Save(r, w)
+		err = session.Save(r, w)
+		if err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
 		url := okta.AuthCodeURL(state)
-		http.Redirect(w, r, url, http.StatusFound)
+		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 	}
 }
 
-type Token string
-
-var Tokens Token = "token"
-
 func HandleCallback(okta *oauth2.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("$354V35V35V3553W5")
-		session := r.Context().Value("my-session").(*sessions.Session)
+		session, err := middlewares.Store.Get(r, middlewares.SessionName)
+		if err != nil {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
 		state := session.Values["state"].(string)
 		stateParam := r.FormValue("state")
 		if stateParam != state {
@@ -56,11 +66,10 @@ func HandleCallback(okta *oauth2.Config) http.HandlerFunc {
 		code := r.FormValue("code")
 		token, err := okta.Exchange(context.Background(), code)
 		if err != nil {
-			zap.S().Errorf("erorr in auth code %s", err)
+			zap.S().Errorf("error in auth code %s", err)
 			http.Error(w, fmt.Sprintf("Failed to exchange code: %s", err), http.StatusInternalServerError)
 			return
 		}
-
 		idToken, ok := token.Extra("id_token").(string)
 		if !ok {
 			http.Error(w, "ID token not found in response", http.StatusInternalServerError)
@@ -71,29 +80,39 @@ func HandleCallback(okta *oauth2.Config) http.HandlerFunc {
 		session.Values["access_token"] = token.AccessToken
 		session.Save(r, w)
 
-		http.Redirect(w, r, "http://localhost:8080/", http.StatusFound)
+		http.Redirect(w, r, "http://localhost:8080/", http.StatusTemporaryRedirect)
 	}
 }
 
 func HandleHome(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value("my-session").(*sessions.Session)
 	idToken := session.Values["id_token"].(string)
-	token, err := gojwt.Parse(idToken, func(token *gojwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*gojwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return nil, nil
-	})
+	toValidate := map[string]string{}
+	toValidate["aud"] = "0oaa12x6jexq58nL8697"
+
+	jwtVerifierSetup := jwtverifier.JwtVerifier{
+		Issuer:           "https://trial-8230984.okta.com/oauth2/default",
+		ClaimsToValidate: toValidate,
+	}
+
+	verifier := jwtVerifierSetup.New()
+
+	token, err := verifier.VerifyIdToken(idToken)
 	if err != nil {
-		zap.S().Errorf("error parsing token: %v", err)
+		fmt.Println("err:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
 	}
 
-	claims, ok := token.Claims.(gojwt.MapClaims)
-	if !ok || !token.Valid {
-		zap.S().Errorf("invalid token: %v", err)
+	UserInfo := UserInfo{
+		Name:  token.Claims["name"].(string),
+		Email: token.Claims["email"].(string),
 	}
 
-	w.Write([]byte(claims["name"].(string)))
+	err = json.NewEncoder(w).Encode(UserInfo)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 func Logout(w http.ResponseWriter, r *http.Request) {
@@ -110,9 +129,23 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 
 	oktaLogoutURL := os.Getenv("LOGOUT_URL") + fmt.Sprintf("?id_token_hint=%s&post_logout_redirect_uri=%s", idToken, "http://localhost:8080/logout/callback")
 	http.Redirect(w, r, oktaLogoutURL, http.StatusTemporaryRedirect)
+
 }
 
 func HandleLogoutCallback(w http.ResponseWriter, r *http.Request) {
 
 	http.Redirect(w, r, "/login", http.StatusFound)
+}
+
+func Hello(w http.ResponseWriter, r *http.Request) {
+	s := samlsp.SessionFromContext(r.Context())
+	if s == nil {
+		return
+	}
+	sa, ok := s.(samlsp.SessionWithAttributes)
+	if !ok {
+		return
+	}
+
+	fmt.Fprintf(w, "Token contents, %+v!", sa.GetAttributes())
 }

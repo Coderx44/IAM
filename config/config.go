@@ -1,9 +1,16 @@
 package config
 
 import (
+	"context"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 
+	"github.com/crewjam/saml/samlsp"
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
 )
@@ -11,7 +18,46 @@ import (
 var (
 	ClientID, ClientSecret, AuthURL, TokenURL string
 	OktaConfig                                *oauth2.Config
+	SamlSP                                    *samlsp.Middleware
 )
+
+func configSamlSP() {
+	keyPair, err := tls.LoadX509KeyPair("./pkg/keys/myservice.cert", "./pkg/keys/myservice.key")
+	if err != nil {
+		panic(err)
+	}
+	keyPair.Leaf, err = x509.ParseCertificate(keyPair.Certificate[0])
+	if err != nil {
+		panic(err)
+	}
+
+	idpMetadataURL, err := url.Parse("https://trial-8230984.okta.com/app/exka6hazngsie3BrF697/sso/saml/metadata")
+	if err != nil {
+		panic(err)
+	}
+	idpMetadata, err := samlsp.FetchMetadata(context.Background(), http.DefaultClient,
+		*idpMetadataURL)
+	if err != nil {
+		panic(err)
+	}
+
+	rootURL, err := url.Parse("http://localhost:8080")
+	if err != nil {
+		panic(err)
+	}
+
+	SamlSP, err = samlsp.New(samlsp.Options{
+		EntityID:    "http://localhost:8080",
+		URL:         *rootURL,
+		Key:         keyPair.PrivateKey.(*rsa.PrivateKey),
+		Certificate: keyPair.Leaf,
+		IDPMetadata: idpMetadata,
+	})
+
+	if err != nil {
+		panic(err)
+	}
+}
 
 func Load() {
 	err := godotenv.Load(".env")
@@ -29,4 +75,6 @@ func Load() {
 		RedirectURL: os.Getenv("REDIRECT_URL"),
 		Scopes:      []string{"openid", "email", "profile"},
 	}
+
+	configSamlSP()
 }
