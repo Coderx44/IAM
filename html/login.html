@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Login</title>
+  </head>
+  <body>
+    <h1>Welcome to Login Example</h1>
+    <button onclick="redirectToLogin('http://localhost:8080/oauth/login')">Login with OAuth</button>
+    <button onclick="redirectToLogin('http://localhost:8080/saml/home')">Login with Saml</button>
+    <script>
+      function redirectToLogin(url) {
+      	window.location.href = url;
+      }
+    </script>
+  </body>
+</html>

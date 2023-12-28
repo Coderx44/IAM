@@ -1,0 +1,21 @@
+<!-- html/home.html -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Home Page</title>
+</head>
+<body>
+    <h1>Welcome to the Home Page</h1>
+    
+    <h2>User Information:</h2>
+    <p>Name: {{.Name}}</p>
+    <p>Email: {{.Email}}</p>
+
+    {{if eq .Type "oauth"}}
+        <form action="/logout" method="GET">
+            <button type="submit">Logout</button>
+        </form>
+    {{end}}
+</body>
+</html>

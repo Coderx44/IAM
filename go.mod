@@ -28,7 +28,9 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/russellhaering/goxmldsig v1.3.0 // indirect
 	golang.org/x/crypto v0.16.0 // indirect
+	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/tools v0.16.1 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 )
@@ -40,6 +42,7 @@ require (
 	github.com/gorilla/sessions v1.2.2
 	github.com/joho/godotenv v1.5.1
 	github.com/okta/okta-jwt-verifier-golang v1.3.1
+	github.com/rs/cors v1.10.1
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/oauth2 v0.15.0
 )

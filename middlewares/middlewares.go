@@ -9,10 +9,12 @@ import (
 )
 
 var Store = sessions.NewCookieStore([]byte("q1w2e3r4t5"))
-var SessionName = "my-session"
+var SessionName = "okta-session"
 
+// SessionsMiddleware ...
 func SessionsMiddleware() mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
+
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			session, err := Store.Get(r, SessionName)
 

@@ -15,6 +15,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// ConfigVars
 var (
 	ClientID, ClientSecret, AuthURL, TokenURL string
 	OktaConfig                                *oauth2.Config
@@ -59,12 +60,7 @@ func configSamlSP() {
 	}
 }
 
-func Load() {
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
+func configOkta() {
 	OktaConfig = &oauth2.Config{
 		ClientID:     os.Getenv("CLIENT_ID"),
 		ClientSecret: os.Getenv("CLIENT_SECRET"),
@@ -75,6 +71,16 @@ func Load() {
 		RedirectURL: os.Getenv("REDIRECT_URL"),
 		Scopes:      []string{"openid", "email", "profile"},
 	}
+}
+
+// Load ...
+func Load() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	configOkta()
 
 	configSamlSP()
 }

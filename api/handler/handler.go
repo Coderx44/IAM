@@ -2,11 +2,11 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"os"
+	"text/template"
 	"time"
 
 	"github.com/Coderx44/oauth_and_saml/middlewares"
@@ -18,6 +18,7 @@ import (
 )
 
 func genRandonState() string {
+
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 	rand.NewSource(time.Now().UnixNano())
 	b := make([]rune, 10)
@@ -29,8 +30,10 @@ func genRandonState() string {
 	return state
 }
 
+// Login ...
 func Login(okta *oauth2.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		session, err := middlewares.Store.Get(r, middlewares.SessionName)
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -45,13 +48,16 @@ func Login(okta *oauth2.Config) http.HandlerFunc {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
+
 		url := okta.AuthCodeURL(state)
 		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 	}
 }
 
+// HandleCallback ...
 func HandleCallback(okta *oauth2.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		session, err := middlewares.Store.Get(r, middlewares.SessionName)
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -70,6 +76,7 @@ func HandleCallback(okta *oauth2.Config) http.HandlerFunc {
 			http.Error(w, fmt.Sprintf("Failed to exchange code: %s", err), http.StatusInternalServerError)
 			return
 		}
+
 		idToken, ok := token.Extra("id_token").(string)
 		if !ok {
 			http.Error(w, "ID token not found in response", http.StatusInternalServerError)
@@ -79,13 +86,14 @@ func HandleCallback(okta *oauth2.Config) http.HandlerFunc {
 		session.Values["id_token"] = idToken
 		session.Values["access_token"] = token.AccessToken
 		session.Save(r, w)
-
 		http.Redirect(w, r, "http://localhost:8080/", http.StatusTemporaryRedirect)
 	}
 }
 
+// HandleHome ...
 func HandleHome(w http.ResponseWriter, r *http.Request) {
-	session := r.Context().Value("my-session").(*sessions.Session)
+
+	session := r.Context().Value("okta-session").(*sessions.Session)
 	idToken := session.Values["id_token"].(string)
 	toValidate := map[string]string{}
 	toValidate["aud"] = "0oaa12x6jexq58nL8697"
@@ -104,19 +112,28 @@ func HandleHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	UserInfo := UserInfo{
+	userInfo := UserInfo{
 		Name:  token.Claims["name"].(string),
 		Email: token.Claims["email"].(string),
+		Type:  "oauth",
 	}
 
-	err = json.NewEncoder(w).Encode(UserInfo)
+	tmpl, err := template.ParseFiles("html/home.html")
 	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = tmpl.Execute(w, userInfo)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
+// Logout ...
 func Logout(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value("my-session").(*sessions.Session)
+
+	session, ok := r.Context().Value("okta-session").(*sessions.Session)
 	if !ok {
 		http.Error(w, "Failed to get session", http.StatusInternalServerError)
 		return
@@ -128,16 +145,20 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 	session.Save(r, w)
 
 	oktaLogoutURL := os.Getenv("LOGOUT_URL") + fmt.Sprintf("?id_token_hint=%s&post_logout_redirect_uri=%s", idToken, "http://localhost:8080/logout/callback")
-	http.Redirect(w, r, oktaLogoutURL, http.StatusTemporaryRedirect)
+
+	http.Redirect(w, r, oktaLogoutURL, http.StatusFound)
 
 }
 
+// HandleLogoutCallback ...
 func HandleLogoutCallback(w http.ResponseWriter, r *http.Request) {
 
 	http.Redirect(w, r, "/login", http.StatusFound)
 }
 
-func Hello(w http.ResponseWriter, r *http.Request) {
+// SamlHome ...
+func SamlHome(w http.ResponseWriter, r *http.Request) {
+
 	s := samlsp.SessionFromContext(r.Context())
 	if s == nil {
 		return
@@ -147,5 +168,46 @@ func Hello(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "Token contents, %+v!", sa.GetAttributes())
+	tmpl, err := template.ParseFiles("html/home.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	userInfo := UserInfo{
+		Name:  sa.GetAttributes().Get("name"),
+		Email: sa.GetAttributes().Get("email"),
+		Type:  "saml",
+	}
+
+	err = tmpl.Execute(w, userInfo)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
+
+// HandleLogin ...
+func HandleLogin(w http.ResponseWriter, r *http.Request) {
+
+	tmpl, err := template.ParseFiles("html/login.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	tmpl.Execute(w, nil)
+}
+
+// func SamlLogout(w http.ResponseWriter, r *http.Request) {
+// 	// Generate a SAML LogoutRequest
+// 	logoutRequest, err := config.SamlSP.ServiceProvider.MakeLogoutRequest("https://trial-8230984.okta.com", "http://localhost:8080")
+// 	if err != nil {
+// 		http.Error(w, fmt.Sprintf("Error creating LogoutRequest: %s", err), http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// Encode and redirect to the Identity Provider (Okta) for logout
+// 	redirectURL := logoutRequest.Redirect("http://localhost:8080/saml/login")
+// 	fmt.Println(redirectURL.String())
+// 	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
+// }
