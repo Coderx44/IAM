@@ -12,7 +12,6 @@ import (
 	"github.com/Coderx44/oauth_and_saml/middlewares"
 	"github.com/crewjam/saml/samlsp"
 	"github.com/gorilla/sessions"
-	jwtverifier "github.com/okta/okta-jwt-verifier-golang"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 )
@@ -93,29 +92,9 @@ func HandleCallback(okta *oauth2.Config) http.HandlerFunc {
 // HandleHome ...
 func HandleHome(w http.ResponseWriter, r *http.Request) {
 
-	session := r.Context().Value("okta-session").(*sessions.Session)
-	idToken := session.Values["id_token"].(string)
-	toValidate := map[string]string{}
-	toValidate["aud"] = "0oaa12x6jexq58nL8697"
-
-	jwtVerifierSetup := jwtverifier.JwtVerifier{
-		Issuer:           "https://trial-8230984.okta.com/oauth2/default",
-		ClaimsToValidate: toValidate,
-	}
-
-	verifier := jwtVerifierSetup.New()
-
-	token, err := verifier.VerifyIdToken(idToken)
+	userInfo, err := decodeToken(r)
 	if err != nil {
-		fmt.Println("err:", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	userInfo := UserInfo{
-		Name:  token.Claims["name"].(string),
-		Email: token.Claims["email"].(string),
-		Type:  "oauth",
 	}
 
 	tmpl, err := template.ParseFiles("html/home.html")
@@ -199,6 +178,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 // func SamlLogout(w http.ResponseWriter, r *http.Request) {
+
 // 	// Generate a SAML LogoutRequest
 // 	logoutRequest, err := config.SamlSP.ServiceProvider.MakeLogoutRequest("https://trial-8230984.okta.com", "http://localhost:8080")
 // 	if err != nil {
@@ -206,7 +186,6 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 // 		return
 // 	}
 
-// 	// Encode and redirect to the Identity Provider (Okta) for logout
 // 	redirectURL := logoutRequest.Redirect("http://localhost:8080/saml/login")
 // 	fmt.Println(redirectURL.String())
 // 	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
