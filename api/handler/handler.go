@@ -9,6 +9,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Coderx44/oauth_and_saml/config"
 	"github.com/Coderx44/oauth_and_saml/middlewares"
 	"github.com/crewjam/saml/samlsp"
 	"github.com/gorilla/sessions"
@@ -177,16 +178,37 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, nil)
 }
 
-// func SamlLogout(w http.ResponseWriter, r *http.Request) {
+func SamlLogout(w http.ResponseWriter, r *http.Request) {
+	s := samlsp.SessionFromContext(r.Context())
+	if s == nil {
+		fmt.Println("no session")
+		return
+	}
+	sa, ok := s.(samlsp.SessionWithAttributes)
+	if !ok {
+		return
+	}
+	attr := sa.GetAttributes()
 
-// 	// Generate a SAML LogoutRequest
-// 	logoutRequest, err := config.SamlSP.ServiceProvider.MakeLogoutRequest("https://trial-8230984.okta.com", "http://localhost:8080")
-// 	if err != nil {
-// 		http.Error(w, fmt.Sprintf("Error creating LogoutRequest: %s", err), http.StatusInternalServerError)
-// 		return
-// 	}
+	// Generate a SAML LogoutRequest
+	logoutURL, err := config.SamlSP.ServiceProvider.MakeRedirectLogoutRequest(attr.Get("name"), "")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error creating LogoutRequest: %s", err), http.StatusInternalServerError)
+		return
+	}
+	err = config.SamlSP.Session.DeleteSession(w, r)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error deleting cookies: %s", err), http.StatusInternalServerError)
+		return
+	}
 
-// 	redirectURL := logoutRequest.Redirect("http://localhost:8080/saml/login")
-// 	fmt.Println(redirectURL.String())
-// 	http.Redirect(w, r, redirectURL.String(), http.StatusFound)
-// }
+	http.Redirect(w, r, logoutURL.String(), http.StatusFound)
+}
+
+func SloLogout(w http.ResponseWriter, r *http.Request) {
+	s := samlsp.SessionFromContext(r.Context())
+	if s == nil {
+		fmt.Println("no session")
+	}
+	http.Redirect(w, r, "/login", http.StatusFound)
+}

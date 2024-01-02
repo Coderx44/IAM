@@ -23,7 +23,7 @@ var (
 )
 
 func configSamlSP() {
-	keyPair, err := tls.LoadX509KeyPair("./pkg/keys/myservice.cert", "./pkg/keys/myservice.key")
+	keyPair, err := tls.LoadX509KeyPair("./myservice.cert", "./myservice.key")
 	if err != nil {
 		panic(err)
 	}
