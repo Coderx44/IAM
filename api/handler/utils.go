@@ -12,7 +12,7 @@ func decodeToken(r *http.Request) (userInfo UserInfo, err error) {
 	session := r.Context().Value("okta-session").(*sessions.Session)
 	idToken := session.Values["id_token"].(string)
 	toValidate := map[string]string{}
-	toValidate["aud"] = "0oaa12x6jexq58nL8697"
+	toValidate["aud"] = "0oaa3nem13Jt6wCz5697"
 
 	jwtVerifierSetup := jwtverifier.JwtVerifier{
 		Issuer:           "https://trial-8230984.okta.com/oauth2/default",
