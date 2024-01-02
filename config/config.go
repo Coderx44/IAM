@@ -32,7 +32,7 @@ func configSamlSP() {
 		panic(err)
 	}
 
-	idpMetadataURL, err := url.Parse("https://trial-8230984.okta.com/app/exka6hazngsie3BrF697/sso/saml/metadata")
+	idpMetadataURL, err := url.Parse(os.Getenv("IDP_METADATA_URL"))
 	if err != nil {
 		panic(err)
 	}
@@ -42,13 +42,13 @@ func configSamlSP() {
 		panic(err)
 	}
 
-	rootURL, err := url.Parse("http://localhost:8080")
+	rootURL, err := url.Parse(os.Getenv("ROOT_URL"))
 	if err != nil {
 		panic(err)
 	}
 
 	SamlSP, err = samlsp.New(samlsp.Options{
-		EntityID:    "http://localhost:8080",
+		EntityID:    os.Getenv("ROOT_URL"),
 		URL:         *rootURL,
 		Key:         keyPair.PrivateKey.(*rsa.PrivateKey),
 		Certificate: keyPair.Leaf,

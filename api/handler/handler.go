@@ -86,7 +86,7 @@ func HandleCallback(okta *oauth2.Config) http.HandlerFunc {
 		session.Values["id_token"] = idToken
 		session.Values["access_token"] = token.AccessToken
 		session.Save(r, w)
-		http.Redirect(w, r, "https://iam-pxqo.onrender.com/", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }
 
