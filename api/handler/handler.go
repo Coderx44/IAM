@@ -86,7 +86,7 @@ func HandleCallback(okta *oauth2.Config) http.HandlerFunc {
 		session.Values["id_token"] = idToken
 		session.Values["access_token"] = token.AccessToken
 		session.Save(r, w)
-		http.Redirect(w, r, "http://localhost:8080/", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "https://iam-pxqo.onrender.com/", http.StatusTemporaryRedirect)
 	}
 }
 
@@ -124,7 +124,7 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 
 	session.Save(r, w)
 
-	oktaLogoutURL := os.Getenv("LOGOUT_URL") + fmt.Sprintf("?id_token_hint=%s&post_logout_redirect_uri=%s", idToken, "http://localhost:8080/logout/callback")
+	oktaLogoutURL := os.Getenv("LOGOUT_URL") + fmt.Sprintf("?id_token_hint=%s&post_logout_redirect_uri=%s", idToken, "https://iam-pxqo.onrender.com/logout/callback")
 
 	http.Redirect(w, r, oktaLogoutURL, http.StatusFound)
 
