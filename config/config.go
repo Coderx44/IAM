@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
@@ -53,8 +54,9 @@ func configSamlSP() {
 		Key:         keyPair.PrivateKey.(*rsa.PrivateKey),
 		Certificate: keyPair.Leaf,
 		IDPMetadata: idpMetadata,
+		SignRequest: true,
 	})
-
+	SamlSP.Binding = saml.HTTPPostBinding
 	if err != nil {
 		panic(err)
 	}
