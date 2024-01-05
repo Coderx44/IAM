@@ -50,6 +50,7 @@ func Login(okta *oauth2.Config) http.HandlerFunc {
 		}
 
 		url := okta.AuthCodeURL(state)
+
 		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 	}
 }
@@ -119,8 +120,6 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	idToken := session.Values["id_token"].(string)
-	session.Values = make(map[interface{}]interface{})
-	session.Options.MaxAge = -1
 
 	session.Save(r, w)
 
@@ -132,6 +131,23 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 
 // HandleLogoutCallback ...
 func HandleLogoutCallback(w http.ResponseWriter, r *http.Request) {
+
+	session, err := getSession(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	accessToken := session.Values["access_token"].(string)
+	session.Values = make(map[interface{}]interface{})
+	session.Options.MaxAge = -1
+	session.Save(r, w)
+
+	err = revokeToken(accessToken, "access_token")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	http.Redirect(w, r, "/login", http.StatusFound)
 }
@@ -191,7 +207,7 @@ func SamlLogout(w http.ResponseWriter, r *http.Request) {
 	attr := sa.GetAttributes()
 
 	// Generate a SAML LogoutRequest
-	logoutURL, err := config.SamlSP.ServiceProvider.MakeRedirectLogoutRequest(attr.Get("name"), "")
+	logoutURL, err := config.SamlSP.ServiceProvider.MakeRedirectLogoutRequest(attr.Get("email"), "")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error creating LogoutRequest: %s", err), http.StatusInternalServerError)
 		return
@@ -206,9 +222,15 @@ func SamlLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func SloLogout(w http.ResponseWriter, r *http.Request) {
+
 	s := samlsp.SessionFromContext(r.Context())
 	if s == nil {
 		fmt.Println("no session")
+	}
+	err := config.SamlSP.Session.DeleteSession(w, r)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error deleting cookies: %s", err), http.StatusInternalServerError)
+		return
 	}
 	http.Redirect(w, r, "/login", http.StatusFound)
 }

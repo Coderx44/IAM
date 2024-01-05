@@ -3,14 +3,46 @@
   <head>
     <title>Login</title>
   </head>
+  <style>  
+    body {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: yellowgreen;
+      background: black;
+    }
+
+
+    .container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      font-family: 'Courier New', Courier, monospace
+    }
+    
+    .btn {
+      border-color: yellowgreen;
+      background: black;
+      color: yellowgreen;
+      height: 40px;
+      width: 150px;
+      cursor: pointer;
+    }
+  </style>
   <body>
-    <h1>Welcome to Login Example</h1>
-    <button onclick="redirectToLogin('https://iam-pxqo.onrender.com/oauth/login')">Login with OAuth</button>
-    <button onclick="redirectToLogin('https://iam-pxqo.onrender.com/saml/home')">Login with Saml</button>
-    <script>
-      function redirectToLogin(url) {
-      	window.location.href = url;
-      }
-    </script>
+    <div class="container">
+      <h1>Welcome to Login Example</h1>
+      <div class="btn-group">
+        <button class="btn" onclick="redirectToLogin('https://iam-pxqo.onrender.com/oauth/login')">Login with OAuth</button>
+        <button class="btn" onclick="redirectToLogin('https://iam-pxqo.onrender.com/saml/home')">Login with Saml</button>
+      </div>
+      <script>
+        function redirectToLogin(url) {
+          window.location.href = url;
+        }
+      </script>
+    </div>
   </body>
 </html>

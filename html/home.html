@@ -5,21 +5,50 @@
 <head>
     <title>Home Page</title>
 </head>
-<body>
-    <h1>Welcome to the Home Page</h1>
-    
-    <h2>User Information:</h2>
-    <p>Name: {{.Name}}</p>
-    <p>Email: {{.Email}}</p>
+<style>
+  body {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: yellowgreen;
+    background: black;
+  }
 
-    {{if eq .Type "oauth"}}
-        <form action="/logout" method="GET">
-            <button type="submit">Logout</button>
-        </form>
-    {{else}}
-        <form action="/saml/logout" method="GET">
-            <button type="submit">Logout</button>
-        </form>
-    {{end}}
+  .container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    font-family: 'Courier New', Courier, monospace
+  }
+
+  .logout-btn {
+    border-color: yellowgreen;
+    background: black;
+    color: yellowgreen;
+    height: 30px;
+    width: 80px;
+    cursor: pointer;
+  }
+</style>
+<body>
+    <div class="container">
+      <h1>Welcome to the Home Page</h1>
+      
+      <h2>User Information:</h2>
+      <p>Name: {{.Name}}</p>
+      <p>Email: {{.Email}}</p>
+
+      {{if eq .Type "oauth"}}
+          <form action="/logout" method="GET">
+              <button class="logout-btn" type="submit">Logout</button>
+          </form>
+      {{else}}
+          <form action="/saml/logout" method="GET">
+              <button class="logout-btn" type="submit">Logout</button>
+          </form>
+      {{end}}
+    </div>
 </body>
 </html>
